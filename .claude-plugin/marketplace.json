@@ -1,0 +1,23 @@
+{
+  "name": "antigravity-cc",
+  "owner": {
+    "name": "simplybychris",
+    "url": "https://github.com/simplybychris"
+  },
+  "metadata": {
+    "description": "Antigravity CLI integration for Claude Code — delegate tasks to Google's `agy` from inside your editor.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "antigravity",
+      "description": "Use the Google Antigravity CLI (`agy`) from Claude Code to delegate tasks, run quick prompts, or review code.",
+      "version": "0.1.0",
+      "author": {
+        "name": "simplybychris",
+        "url": "https://detechtive.pl"
+      },
+      "source": "./plugins/antigravity"
+    }
+  ]
+}
