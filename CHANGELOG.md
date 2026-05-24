@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-05-24
+
+### Added
+- `/agy:research` — delegate a deep-research investigation. Wraps the
+  topic in a structured prompt (background, key findings, caveats,
+  sources) and routes through the `agy:runner` subagent. Defaults toward
+  background execution for long jobs.
+- `/agy:image` — generate an image with `agy`'s built-in `generate_image`
+  tool (Imagen under the hood). Optional `--name <slug>` for the saved
+  filename and `--output <path>` to copy the generated PNG next to your
+  project.
+- `agy-run.sh` gains an `image` subcommand that builds the right prompt
+  for `agy`'s native image tool and optionally copies the result.
+
 ## [0.2.0] - 2026-05-24
 
 ### Changed

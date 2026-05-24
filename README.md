@@ -17,6 +17,11 @@ just Bash and `agy`.
   response.
 - **`/agy:delegate <task>`** — hand a task to the `agy:runner` subagent.
   Supports `--background` for long jobs and `--model <name>` for routing.
+- **`/agy:research <topic>`** — delegate a deep-research investigation; wraps
+  the topic in a structured prompt and routes through `agy:runner`.
+- **`/agy:image <description>`** — generate an image with `agy`'s built-in
+  `generate_image` tool (Imagen under the hood). Optional `--name` and
+  `--output`.
 - **`/agy:review [focus]`** — ask Antigravity to review your current
   `git diff`.
 - **`agy:runner` subagent** — thin forwarding wrapper around the Antigravity
@@ -109,6 +114,29 @@ Stage or make some changes, then:
 
 If no model is given, `agy` uses whatever is configured in
 `~/.config/antigravity/config.toml` (or its global default).
+
+### Delegate a deep research investigation
+
+```text
+/agy:research what's the current state of WebGPU support across browsers in 2026?
+/agy:research --background --model claude-opus survey post-quantum signature schemes used in TLS
+```
+
+The command wraps your topic in a research-oriented preamble (background,
+key findings, caveats, sources) and delegates to `agy:runner`. Long
+investigations work well in `--background`.
+
+### Generate an image
+
+```text
+/agy:image a minimalist dark-mode login mockup, blue accent color
+/agy:image --name hero --output ./assets/hero.png isometric illustration of a developer at a desk
+```
+
+Triggers `agy`'s built-in `generate_image` tool. The image is written to
+the Antigravity artifacts dir (e.g.
+`~/.gemini/antigravity-cli/brain/<uuid>/<name>.png`). Pass `--output` if
+you want the wrapper to copy it next to your project.
 
 ## How it works
 
