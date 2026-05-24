@@ -1,0 +1,9 @@
+{
+  "name": "agy",
+  "version": "0.2.0",
+  "description": "Use the Google Antigravity CLI (`agy`) from inside Claude Code — slash commands /agy:setup, /agy:ask, /agy:delegate, /agy:review.",
+  "author": {
+    "name": "simplybychris",
+    "url": "https://detechtive.pl"
+  }
+}

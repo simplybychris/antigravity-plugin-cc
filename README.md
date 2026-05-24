@@ -1,93 +1,85 @@
-# Antigravity plugin for Claude Code
+# agy — Antigravity CLI plugin for Claude Code
 
-Use Google's [Antigravity CLI (`agy`)](https://antigravity.google/) from inside
-Claude Code. Delegate tasks to the `agy` subagent, run quick prompts, or get a
-second-opinion code review — without leaving your editor.
+Use Google's [Antigravity CLI (`agy`)](https://antigravity.google/) from
+inside Claude Code. Delegate tasks to the `agy:runner` subagent, run quick
+prompts, or get a second-opinion code review — without leaving your editor.
 
 This plugin is for Claude Code users who already use (or want to start using)
 Antigravity and want a smooth way to call it from the workflow they already
-have. It is intentionally small: no Node runtime, no broker, no review-gate
-hook — just Bash and `agy`.
+have. Intentionally small: no Node runtime, no broker, no review-gate hook —
+just Bash and `agy`.
 
 ## What you get
 
-- **`/antigravity:setup`** — verify `agy` is installed and authenticated; can
-  install it for you if it is missing.
-- **`/antigravity:ask <prompt>`** — one-shot prompt through `agy -p`; returns
-  the raw response.
-- **`/antigravity:delegate <task>`** — hand a task to the `agy` subagent.
+- **`/agy:setup`** — verify `agy` is installed and authenticated; can install
+  it for you if it is missing.
+- **`/agy:ask <prompt>`** — one-shot prompt through `agy -p`; returns the raw
+  response.
+- **`/agy:delegate <task>`** — hand a task to the `agy:runner` subagent.
   Supports `--background` for long jobs and `--model <name>` for routing.
-- **`/antigravity:review [focus]`** — ask Antigravity to review your current
+- **`/agy:review [focus]`** — ask Antigravity to review your current
   `git diff`.
-- **`agy` subagent** — thin forwarding wrapper around the Antigravity CLI;
-  available as `subagent_type: "agy"` for programmatic delegation.
+- **`agy:runner` subagent** — thin forwarding wrapper around the Antigravity
+  CLI; available as `subagent_type: "agy:runner"` for programmatic
+  delegation.
 
 ## Requirements
 
-- **Claude Code** with plugin-marketplace support (`/plugin marketplace add …`).
-- **Antigravity CLI (`agy`)** installed locally. `/antigravity:setup` can
-  install it on first run.
+- **Claude Code** with plugin-marketplace support
+  (`/plugin marketplace add …`).
+- **Antigravity CLI (`agy`)** installed locally. `/agy:setup` can install it
+  on first run.
 - **Auth** for `agy`: either OAuth cached in the system keyring (after one
   interactive run of `agy`) or `ANTIGRAVITY_API_KEY` exported in your shell.
 - **Bash** and **git** in `PATH`. macOS, Linux, or WSL.
 
 ## Install
 
-Add the marketplace in Claude Code:
+In Claude Code, run these three slash commands in order:
 
-```bash
+```text
 /plugin marketplace add simplybychris/antigravity-plugin-cc
-```
-
-Install the plugin:
-
-```bash
-/plugin install antigravity@antigravity-cc
-```
-
-Reload plugins:
-
-```bash
+/plugin install agy@antigravity-cc
 /reload-plugins
 ```
 
-Then run:
+Then verify everything is wired up:
 
-```bash
-/antigravity:setup
+```text
+/agy:setup
 ```
 
-If `agy` is missing, `/antigravity:setup` offers to install it via the
-official installer:
+If `agy` is missing, `/agy:setup` offers to install it via the official
+installer:
 
 ```bash
 curl -fsSL https://antigravity.google/cli/install.sh | bash
 ```
 
-If `agy` is installed but not logged in, run `agy` once interactively in your terminal to
-complete OAuth — or export `ANTIGRAVITY_API_KEY`.
+If `agy` is installed but not logged in, run `agy` once interactively in your
+terminal to complete OAuth — or export `ANTIGRAVITY_API_KEY`.
 
 ## Usage
 
 ### Ask a quick question
 
 ```text
-/antigravity:ask explain the difference between Go channels and Rust async in one paragraph
+/agy:ask explain the difference between Go channels and Rust async in one paragraph
 ```
 
 Returns Antigravity's response verbatim.
 
-### Delegate a task to the `agy` subagent
+### Delegate a task to the `agy:runner` subagent
 
 ```text
-/antigravity:delegate refactor the SQL queries in src/db/queries.go to use prepared statements
+/agy:delegate refactor the SQL queries in src/db/queries.go to use prepared statements
 ```
 
 For long tasks, run in the background and let Claude Code notify you when it
 finishes:
 
 ```text
-/antigravity:delegate --background investigate why integration tests are flaky in CI
+/agy:delegate --background investigate why integration tests are flaky in CI
 ```
 
 You can also delegate by talking to Claude:
@@ -96,22 +88,23 @@ You can also delegate by talking to Claude:
 Ask agy to look at this file and suggest a simpler design.
 ```
 
-The plugin's selection rules route through the `agy` subagent automatically.
+The plugin's selection rules route through the `agy:runner` subagent
+automatically.
 
 ### Review the current diff
 
 Stage or make some changes, then:
 
 ```text
-/antigravity:review
-/antigravity:review focus on error handling and concurrency safety
+/agy:review
+/agy:review focus on error handling and concurrency safety
 ```
 
 ### Pick a specific model
 
 ```text
-/antigravity:delegate --model claude-sonnet fix the off-by-one in pagination
-/antigravity:delegate --model gemini-3.1-pro write a high-coverage test for the cache layer
+/agy:delegate --model claude-sonnet fix the off-by-one in pagination
+/agy:delegate --model gemini-3.1-pro write a high-coverage test for the cache layer
 ```
 
 If no model is given, `agy` uses whatever is configured in
@@ -122,22 +115,24 @@ If no model is given, `agy` uses whatever is configured in
 Under the hood, the plugin is a thin wrapper around your local `agy` install:
 
 ```
-Claude Code  →  /antigravity:*  →  agy subagent  →  agy-run.sh  →  agy -p "..."
+Claude Code  →  /agy:*  →  agy:runner subagent  →  agy-run.sh  →  agy -p "..."
 ```
 
 - The plugin does **not** ship its own Antigravity runtime — it uses your
   local `agy` binary, your local auth, and your local config.
 - The wrapper script
-  ([`plugins/antigravity/scripts/agy-run.sh`](./plugins/antigravity/scripts/agy-run.sh))
+  ([`plugins/agy/scripts/agy-run.sh`](./plugins/agy/scripts/agy-run.sh))
   handles binary discovery, auth detection, and exit codes.
-- The `agy` subagent is a *forwarder*: it invokes the wrapper exactly once per
-  request and returns Antigravity's output verbatim. No reinterpretation.
+- The `agy:runner` subagent is a *forwarder*: it invokes the wrapper exactly
+  once per request and returns Antigravity's output verbatim. No
+  reinterpretation.
 
 ## Configuration
 
 Antigravity itself reads `~/.config/antigravity/config.toml` and project-local
-`AGENTS.md` / `GEMINI.md` files. This plugin doesn't override or shadow any of
-that — drop config files where `agy` expects them and they'll be picked up.
+`AGENTS.md` / `GEMINI.md` files. This plugin doesn't override or shadow any
+of that — drop config files where `agy` expects them and they'll be picked
+up.
 
 ## FAQ
 
@@ -155,8 +150,8 @@ Google through `agy`'s normal channels.
 
 ### Can I keep using Antigravity outside this plugin?
 
-Yes — the plugin uses your local install. Running `agy` directly in a terminal
-keeps working exactly as before.
+Yes — the plugin uses your local install. Running `agy` directly in a
+terminal keeps working exactly as before.
 
 ### Why a subagent instead of just a slash command?
 

@@ -1,10 +1,11 @@
 ---
-description: Delegate a task to the Antigravity (`agy`) subagent; supports background execution and model selection
+description: Delegate a task to the Antigravity (`agy`) runner subagent; supports background execution and model selection
 argument-hint: "[--background] [--model <name>] <task description>"
 allowed-tools: Agent
 ---
 
-Hand the user's task to the `agy` subagent (`subagent_type: "agy"`).
+Hand the user's task to the `agy:runner` subagent
+(`subagent_type: "agy:runner"`).
 
 Raw user request:
 $ARGUMENTS
