@@ -5,14 +5,14 @@
     "url": "https://github.com/simplybychris"
   },
   "metadata": {
-    "description": "Antigravity CLI integration for Claude Code \u2014 delegate tasks to Google's `agy` from inside your editor.",
-    "version": "0.3.1"
+    "description": "Antigravity CLI integration for Claude Code — delegate tasks to Google's `agy` from inside your editor.",
+    "version": "0.4.0"
   },
   "plugins": [
     {
       "name": "agy",
-      "description": "Use the Google Antigravity CLI (`agy`) from Claude Code \u2014 slash commands /agy:setup, /agy:ask, /agy:delegate, /agy:review, /agy:research, /agy:image.",
-      "version": "0.3.1",
+      "description": "Use the Google Antigravity CLI (`agy`) from Claude Code — slash commands /agy:setup, /agy:ask, /agy:delegate, /agy:research, /agy:review, /agy:image, /agy:help. Supports per-call model selection via --model.",
+      "version": "0.4.0",
       "author": {
         "name": "simplybychris",
         "url": "https://detechtive.pl"
