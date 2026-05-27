@@ -1,6 +1,6 @@
 {
   "name": "agy",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Use the Google Antigravity CLI (`agy`) from inside Claude Code — slash commands /agy:setup, /agy:ask, /agy:delegate, /agy:research, /agy:review, /agy:image, /agy:help. Supports per-call model selection via --model.",
   "author": {
     "name": "simplybychris",

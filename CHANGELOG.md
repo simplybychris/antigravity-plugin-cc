@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-05-27
+
+### Fixed
+- `/agy:ask` and `/agy:image`: stop silent fallback / silent exit when
+  a flag value is missing. `--model` (no value) used to die with exit 1
+  and no message; `--model=` (empty) used to silently fall back to the
+  default model. Both now print `error: --model requires a non-empty
+  value`, the alias table, and a tip showing the current default. Same
+  fix applied to `cmd_image` for `--name` and `--output`, plus `=` form
+  support (`--name=foo`, `--output=path`).
+- `/agy:help`: prints the wrapper's stdout verbatim in the reply as a
+  code block instead of leaving it as a collapsed tool result.
+
 ## [0.4.0] - 2026-05-26
 
 ### Added
