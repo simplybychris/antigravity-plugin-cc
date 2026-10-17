@@ -41,10 +41,11 @@ Then invoke the `agy:runner` subagent with that prompt as
   it can be appended to the wrapper call as `--model <alias>` (placed
   **before** the prompt argument). If no model is given, leave the choice to
   whatever the TUI is currently set to (a reasoning-strong model like
-  `pro` or `opus` works well for research).
+  `argon` or `opus` works well for research).
 
-Aliases: `flash-low`, `flash-medium`, `flash`, `pro-low`, `pro`, `sonnet`,
-`opus`, `gpt-oss`. Canonical TUI strings (e.g. `"Claude Opus 4.6 (Thinking)"`)
+Aliases: `flash[-low|-medium|-high]`, `argon[-low|-medium|-high]`,
+`opus[-low|-medium|-high]`, `sonnet[-low|-medium|-high]`, `gpt-oss`.
+Canonical TUI strings (e.g. `"Claude Opus 5.5 (High)"`)
 are also accepted. Run `/agy:help` for the full table.
 
 ## Response style
