@@ -81,20 +81,21 @@ print_model_table() {
   local fd="${1:-2}"
   {
     echo "Aliases (case-insensitive):"
-    echo "  flash-low                     -> Gemini 3.5 Flash (Low)"
-    echo "  flash-medium, flash-med       -> Gemini 3.5 Flash (Medium)"
-    echo "  flash, flash-high             -> Gemini 3.5 Flash (High)"
-    echo "  pro-low                       -> Gemini 3.1 Pro (Low)"
-    echo "  pro, pro-high                 -> Gemini 3.1 Pro (High)"
-    echo "  sonnet, claude-sonnet         -> Claude Sonnet 4.6 (Thinking)"
-    echo "  opus, claude-opus             -> Claude Opus 4.6 (Thinking)"
-    echo "  gpt-oss, gpt-oss-120b         -> GPT-OSS 120B (Medium)"
+    echo "  flash-low | flash-medium (flash-med) | flash-high   -> Gemini 3.8 Flash (Low|Medium|High)"
+    echo "  flash                                              -> Gemini 3.8 Flash (High)"
+    echo "  argon-low | argon-medium | argon-high              -> Gemini 4 Argon (Low|Medium|High)"
+    echo "  argon                                              -> Gemini 4 Argon (Medium)"
+    echo "  opus-low | opus-medium | opus-high                 -> Claude Opus 5.5 (Low|Medium|High)"
+    echo "  opus, claude-opus                                  -> Claude Opus 5.5 (Medium)"
+    echo "  sonnet-low | sonnet-medium | sonnet-high           -> Claude Sonnet 5.5 (Low|Medium|High)"
+    echo "  sonnet, claude-sonnet                              -> Claude Sonnet 5.5 (Medium)"
+    echo "  gpt-oss, gpt-oss-120b                              -> GPT-OSS 120B (Medium)"
     echo
     echo "Canonical strings (also accepted verbatim, case-sensitive):"
-    echo "  Gemini 3.5 Flash (Low|Medium|High)"
-    echo "  Gemini 3.1 Pro (Low|High)"
-    echo "  Claude Sonnet 4.6 (Thinking)"
-    echo "  Claude Opus 4.6 (Thinking)"
+    echo "  Gemini 3.8 Flash (Low|Medium|High)"
+    echo "  Gemini 4 Argon (Low|Medium|High)"
+    echo "  Claude Opus 5.5 (Low|Medium|High)"
+    echo "  Claude Sonnet 5.5 (Low|Medium|High)"
     echo "  GPT-OSS 120B (Medium)"
   } >&"$fd"
 }
@@ -109,7 +110,7 @@ _current_default_model() {
 resolve_model_alias() {
   local input="${1:-}"
   if [ -z "$input" ]; then
-    echo "error: --model requires a non-empty value (e.g. --model pro)" >&2
+    echo "error: --model requires a non-empty value (e.g. --model flash)" >&2
     print_model_table 2
     local current; current="$(_current_default_model 2>/dev/null || true)"
     if [ -n "$current" ]; then
@@ -119,27 +120,30 @@ resolve_model_alias() {
     exit 64
   fi
   case "$input" in
-    "Gemini 3.5 Flash (Low)"|\
-    "Gemini 3.5 Flash (Medium)"|\
-    "Gemini 3.5 Flash (High)"|\
-    "Gemini 3.1 Pro (Low)"|\
-    "Gemini 3.1 Pro (High)"|\
-    "Claude Sonnet 4.6 (Thinking)"|\
-    "Claude Opus 4.6 (Thinking)"|\
+    "Gemini 3.8 Flash (Low)"|"Gemini 3.8 Flash (Medium)"|"Gemini 3.8 Flash (High)"|\
+    "Gemini 4 Argon (Low)"|"Gemini 4 Argon (Medium)"|"Gemini 4 Argon (High)"|\
+    "Claude Opus 5.5 (Low)"|"Claude Opus 5.5 (Medium)"|"Claude Opus 5.5 (High)"|\
+    "Claude Sonnet 5.5 (Low)"|"Claude Sonnet 5.5 (Medium)"|"Claude Sonnet 5.5 (High)"|\
     "GPT-OSS 120B (Medium)")
       printf '%s' "$input"
       return 0 ;;
   esac
+
   # bash 3.2 (macOS /bin/bash) lacks ${var,,}, hence tr.
   local lc; lc="$(printf '%s' "$input" | tr '[:upper:]' '[:lower:]')"
   case "$lc" in
-    flash-low)                  printf '%s' "Gemini 3.5 Flash (Low)" ;;
-    flash-medium|flash-med)     printf '%s' "Gemini 3.5 Flash (Medium)" ;;
-    flash|flash-high)           printf '%s' "Gemini 3.5 Flash (High)" ;;
-    pro-low)                    printf '%s' "Gemini 3.1 Pro (Low)" ;;
-    pro|pro-high)               printf '%s' "Gemini 3.1 Pro (High)" ;;
-    sonnet|claude-sonnet)       printf '%s' "Claude Sonnet 4.6 (Thinking)" ;;
-    opus|claude-opus)           printf '%s' "Claude Opus 4.6 (Thinking)" ;;
+    flash-low)                  printf '%s' "Gemini 3.8 Flash (Low)" ;;
+    flash-medium|flash-med)     printf '%s' "Gemini 3.8 Flash (Medium)" ;;
+    flash|flash-high)           printf '%s' "Gemini 3.8 Flash (High)" ;;
+    argon-low)                  printf '%s' "Gemini 4 Argon (Low)" ;;
+    argon|argon-medium)         printf '%s' "Gemini 4 Argon (Medium)" ;;
+    argon-high)                 printf '%s' "Gemini 4 Argon (High)" ;;
+    opus-low)                   printf '%s' "Claude Opus 5.5 (Low)" ;;
+    opus|opus-medium|claude-opus) printf '%s' "Claude Opus 5.5 (Medium)" ;;
+    opus-high)                  printf '%s' "Claude Opus 5.5 (High)" ;;
+    sonnet-low)                 printf '%s' "Claude Sonnet 5.5 (Low)" ;;
+    sonnet|sonnet-medium|claude-sonnet) printf '%s' "Claude Sonnet 5.5 (Medium)" ;;
+    sonnet-high)                printf '%s' "Claude Sonnet 5.5 (High)" ;;
     gpt-oss|gpt-oss-120b)       printf '%s' "GPT-OSS 120B (Medium)" ;;
     *)
       echo "error: unknown model alias '$input'" >&2

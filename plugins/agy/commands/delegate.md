@@ -21,9 +21,9 @@ $ARGUMENTS
 - If no model is given, the wrapper uses whatever the TUI is currently set
   to (stored in `~/.gemini/antigravity-cli/settings.json`).
 
-Aliases for `<alias>`: `flash-low`, `flash-medium`, `flash`, `pro-low`,
-`pro`, `sonnet`, `opus`, `gpt-oss`. Canonical TUI strings (e.g.
-`"Claude Opus 4.6 (Thinking)"`) are also accepted. Run `/agy:help` for the
+Aliases for `<alias>`: `flash[-low|-medium|-high]`, `argon[-low|-medium|-high]`,
+`opus[-low|-medium|-high]`, `sonnet[-low|-medium|-high]`, `gpt-oss`. Canonical TUI strings (e.g.
+`"Claude Opus 5.5 (High)"`) are also accepted. Run `/agy:help` for the
 full table.
 
 ## Response style

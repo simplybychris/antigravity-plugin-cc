@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Breaking:** refresh the `--model` lineup to the current Antigravity
+  models, each with Low / Medium / High effort: Gemini 3.8 Flash,
+  Gemini 4 Argon, Claude Opus 5.5, Claude Sonnet 5.5 (plus GPT-OSS 120B
+  Medium). New aliases: `flash-*`, `argon-*`, `opus-*`, `sonnet-*`; bare
+  `flash` = High, `argon` / `opus` / `sonnet` = Medium.
+- **Breaking:** removed Gemini 3.5 Flash, Gemini 3.1 Pro and the Claude 4.6
+  (Thinking) models, and the `pro`, `pro-low`, `pro-high` aliases (use
+  `argon-*`). Passing the old names now fails with exit 64 and the new
+  alias table.
+
 ## [0.4.1] - 2026-05-27
 
 ### Fixed

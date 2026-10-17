@@ -41,9 +41,10 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/agy-run.sh" ask [--model <alias>] "<prompt>"
   ```
   The wrapper resolves the alias, takes a lock on `~/.gemini/antigravity-cli/settings.json`,
   patches the model field, invokes `agy`, then restores the original on
-  exit. Supported aliases: `flash-low`, `flash-medium`, `flash`, `pro-low`,
-  `pro`, `sonnet`, `opus`, `gpt-oss`. Canonical TUI strings (e.g.
-  `"Claude Opus 4.6 (Thinking)"`) are also accepted.
+  exit. Supported aliases: `flash[-low|-medium|-high]`,
+  `argon[-low|-medium|-high]`, `opus[-low|-medium|-high]`,
+  `sonnet[-low|-medium|-high]`, `gpt-oss`. Canonical TUI strings (e.g.
+  `"Claude Opus 5.5 (High)"`) are also accepted.
 - If no `--model` was given, leave model selection to whatever the user's
   TUI is currently set to.
 - Do not pass any other model-selection flag to `agy` directly — `agy`

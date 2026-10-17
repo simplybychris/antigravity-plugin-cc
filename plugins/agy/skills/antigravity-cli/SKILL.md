@@ -38,10 +38,11 @@ Pass agy-native flags through after the prompt argument.
 
 ## Model aliases (consumed by the wrapper)
 
-`flash-low`, `flash-medium` (`flash-med`), `flash` (`flash-high`),
-`pro-low`, `pro` (`pro-high`), `sonnet` (`claude-sonnet`),
-`opus` (`claude-opus`), `gpt-oss` (`gpt-oss-120b`). Canonical TUI strings
-are also accepted verbatim (e.g. `"Claude Opus 4.6 (Thinking)"`).
+`flash-{low,medium,high}` (`flash` = High), `argon-{low,medium,high}`
+(`argon` = Medium), `opus-{low,medium,high}` (`opus`/`claude-opus` = Medium),
+`sonnet-{low,medium,high}` (`sonnet`/`claude-sonnet` = Medium),
+`gpt-oss` (`gpt-oss-120b`). Canonical TUI strings are also accepted
+verbatim (e.g. `"Claude Opus 5.5 (High)"`).
 
 Run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/agy-run.sh" help` for the
 authoritative list.

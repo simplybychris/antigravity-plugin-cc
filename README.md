@@ -112,13 +112,15 @@ Stage or make some changes, then:
 
 ```text
 /agy:delegate --model sonnet fix the off-by-one in pagination
-/agy:delegate --model pro write a high-coverage test for the cache layer
+/agy:delegate --model argon-high write a high-coverage test for the cache layer
 /agy:ask --model opus "explain Go's escape analysis"
 ```
 
-Supported aliases: `flash-low`, `flash-medium`, `flash`, `pro-low`, `pro`,
-`sonnet`, `opus`, `gpt-oss`. The canonical TUI strings (e.g.
-`"Claude Opus 4.6 (Thinking)"`) are also accepted. Run `/agy:help` for the
+Supported aliases: `flash-{low,medium,high}` (`flash` = High),
+`argon-{low,medium,high}` (`argon` = Medium), `opus-{low,medium,high}`
+(`opus` = Medium), `sonnet-{low,medium,high}` (`sonnet` = Medium) and
+`gpt-oss`. The canonical TUI strings (e.g.
+`"Claude Opus 5.5 (High)"`) are also accepted. Run `/agy:help` for the
 full table.
 
 If no `--model` is given, the wrapper uses whatever the TUI is currently set
