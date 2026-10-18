@@ -311,11 +311,11 @@ cmd_ask() {
   fi
   local path
   path="$(require_ready)"
-  if [ -n "$canonical" ]; then
-    with_model_override "$canonical" -- "$path" -p "$prompt" "$@"
-  else
-    "$path" -p "$prompt" "$@"
-  fi
+  # Native --model is per-process: no settings.json swap, no global lock,
+  # so concurrent calls (parallel sessions / background agents) don't block.
+  local -a model_args=()
+  [ -n "$canonical" ] && model_args=(--model "$canonical")
+  "$path" ${model_args[@]+"${model_args[@]}"} -p "$prompt" "$@"
 }
 
 cmd_review() {
