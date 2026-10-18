@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # agy-run.sh — Claude Code wrapper around Google Antigravity CLI (`agy`).
 # Subcommands: check | ask | review | image | help.
-# `--model` (on ask) overrides the model for one call via locked
-# settings.json patching, restored on exit.
+# `--model` (on ask) overrides the model for one call via agy's native
+# per-process `--model` flag (no settings.json patching, no lock).
 
 set -euo pipefail
 
@@ -450,11 +450,11 @@ HELP
   cat <<'HELP'
 
 How --model works
-  The plugin manages the "model" field in ~/.gemini/antigravity-cli/settings.json
-  for the duration of a single call: it takes a lock, swaps in your requested
-  model, invokes agy, and restores the original on exit (including SIGINT /
-  SIGTERM). If your TUI is open in parallel, its selected model will flip
-  for the duration of the call and revert when the call finishes.
+  The alias is resolved to a canonical name and passed to agy's native
+  `--model` flag for that single call. Your default model in
+  ~/.gemini/antigravity-cli/settings.json is never touched, and there is no
+  lock, so several calls (parallel sessions, background agents, an open TUI)
+  can run at the same time with different models.
 
   Unknown aliases fail with exit 64 — typo safety beats forward-compat. If
   Google ships a new model, update the plugin.

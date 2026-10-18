@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- `--model` no longer serializes calls. It used to swap the `model` field in
+  `~/.gemini/antigravity-cli/settings.json` under a global lock, so a second
+  `--model` call (another Claude Code session, a background `agy:runner`)
+  blocked until the first finished, and could briefly flip the model of an
+  open TUI. The wrapper now passes agy's native per-process `--model` flag:
+  no settings patching, no lock, safe to run in parallel. The old
+  lock/patch helpers are no longer used by `ask` and can be removed in a
+  follow-up.
+
 ## [0.4.1] - 2026-05-27
 
 ### Fixed
