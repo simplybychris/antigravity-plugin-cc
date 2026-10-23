@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # agy-run.sh — Claude Code wrapper around Google Antigravity CLI (`agy`).
 # Subcommands: check | ask | review | image | help.
-# `--model` (on ask) overrides the model for one call via locked
-# settings.json patching, restored on exit.
+# `--model` (on ask) overrides the model for one call via agy's native
+# per-process `--model` flag (no settings.json patching, no lock).
+# Permissions agy can't prompt for headlessly are relayed back to Claude Code
+# as an [agy-permission-request] block (exit 75); see agy_permissions.py.
 
 set -euo pipefail
 
@@ -276,9 +278,28 @@ with_model_override() {
   with_settings_lock _do_patched_run "$canonical" "$@"
 }
 
+AGY_PERMISSIONS_PY="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/agy_permissions.py"
+AGY_TEMP_RULES=()
+
+_revoke_temp_rules() {
+  if [ "${#AGY_TEMP_RULES[@]}" -gt 0 ]; then
+    python3 -I "$AGY_PERMISSIONS_PY" revoke "$AGY_SETTINGS_FILE" "${AGY_TEMP_RULES[@]}" || true
+    AGY_TEMP_RULES=()
+  fi
+}
+
+_require_value() {
+  if [ $# -lt 2 ] || [ -z "$2" ]; then
+    echo "error: $1 requires a non-empty value" >&2
+    exit 64
+  fi
+}
+
 cmd_ask() {
   local model_alias=""
   local model_flag_seen=0
+  local resume_id=""
+  local -a allow_once=() allow_always=()
   while [ $# -gt 0 ]; do
     case "$1" in
       --model)
@@ -294,6 +315,9 @@ cmd_ask() {
         model_flag_seen=1
         model_alias="${1#--model=}"
         shift ;;
+      --resume)       _require_value "$@"; resume_id="$2"; shift 2 ;;
+      --allow-once)   _require_value "$@"; allow_once+=("command($2)"); shift 2 ;;
+      --allow-always) _require_value "$@"; allow_always+=("command($2)"); shift 2 ;;
       --)        shift; break ;;
       *)         break ;;
     esac
@@ -311,11 +335,44 @@ cmd_ask() {
   fi
   local path
   path="$(require_ready)"
-  if [ -n "$canonical" ]; then
-    with_model_override "$canonical" -- "$path" -p "$prompt" "$@"
-  else
-    "$path" -p "$prompt" "$@"
+  # Native --model is per-process: no settings.json swap, no global lock,
+  # so concurrent calls (parallel sessions / background agents) don't block.
+  local -a agy_args=()
+  [ -n "$canonical" ] && agy_args+=(--model "$canonical")
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    # No permission relay without python3: plain headless run.
+    "$path" ${agy_args[@]+"${agy_args[@]}"} -p "$prompt" "$@"
+    return
   fi
+
+  # Workspace edits are accepted; anything else agy would prompt for is
+  # auto-denied headlessly and relayed back as an [agy-permission-request].
+  agy_args+=(--mode "${AGY_PERMISSION_MODE:-accept-edits}" --output-format json)
+  [ -n "$resume_id" ] && agy_args+=(--conversation "$resume_id")
+
+  if [ "${#allow_always[@]}" -gt 0 ]; then
+    validate_settings_file
+    python3 -I "$AGY_PERMISSIONS_PY" grant "$AGY_SETTINGS_FILE" "${allow_always[@]}" >/dev/null
+  fi
+  if [ "${#allow_once[@]}" -gt 0 ]; then
+    validate_settings_file
+    trap '_revoke_temp_rules' EXIT INT TERM HUP
+    local rule
+    while IFS= read -r rule; do
+      [ -n "$rule" ] && AGY_TEMP_RULES+=("$rule")
+    done < <(python3 -I "$AGY_PERMISSIONS_PY" grant "$AGY_SETTINGS_FILE" "${allow_once[@]}")
+  fi
+
+  local out err rc=0
+  out="$(mktemp)"; err="$(mktemp)"
+  "$path" "${agy_args[@]}" -p "$prompt" "$@" >"$out" 2>"$err" || rc=$?
+  _revoke_temp_rules
+  trap - EXIT INT TERM HUP
+  local rc2=0
+  python3 -I "$AGY_PERMISSIONS_PY" report "$out" "$err" "$rc" || rc2=$?
+  rm -f "$out" "$err"
+  return "$rc2"
 }
 
 cmd_review() {
@@ -450,14 +507,24 @@ HELP
   cat <<'HELP'
 
 How --model works
-  The plugin manages the "model" field in ~/.gemini/antigravity-cli/settings.json
-  for the duration of a single call: it takes a lock, swaps in your requested
-  model, invokes agy, and restores the original on exit (including SIGINT /
-  SIGTERM). If your TUI is open in parallel, its selected model will flip
-  for the duration of the call and revert when the call finishes.
+  The alias is resolved to a canonical name and passed to agy's native
+  `--model` flag for that single call. Your default model in
+  ~/.gemini/antigravity-cli/settings.json is never touched, and there is no
+  lock, so several calls (parallel sessions, background agents, an open TUI)
+  can run at the same time with different models.
 
   Unknown aliases fail with exit 64 — typo safety beats forward-compat. If
   Google ships a new model, update the plugin.
+
+Permissions
+  ask runs agy with --mode accept-edits (override: AGY_PERMISSION_MODE).
+  Workspace edits go through; commands agy can't prompt for headlessly are
+  denied and reported in an [agy-permission-request] block (exit 75).
+  Resume after asking the user:
+    ask --resume <conversation_id> --allow-once "<cmd>" "<follow-up prompt>"
+    ask --resume <conversation_id> --allow-always "<cmd>" "<follow-up prompt>"
+  --allow-once adds an exact command(<cmd>) rule for that call only;
+  --allow-always keeps it in ~/.gemini/antigravity-cli/settings.json.
 
 Underlying CLI
   Run `agy --help` for agy's own flags: --add-dir, -c/--continue,

@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- Faster delegation. `/agy:delegate` and `/agy:research` call the wrapper
+  directly with Bash (`run_in_background` for `--background`) instead of going
+  through the `agy:runner` subagent, which added a model start-up and a
+  second re-typing of agy's output (~10s+ per call).
+- `/agy:delegate` is now execution-oriented: Claude briefs agy, asks it for a
+  short report (files changed, commands run, results) to cut agy's output
+  tokens, checks the diff/tests itself and reports in a few lines instead of
+  pasting agy's output verbatim.
+- `agy:runner` runs on Haiku instead of Sonnet.
+
+### Added
+- Permission relay. Headless `agy -p` auto-denies anything it would prompt
+  for, so delegated tasks silently failed to run commands. `ask` now runs agy
+  with `--mode accept-edits --output-format json`; when agy denies something,
+  the wrapper reads the exact command from the conversation transcript and
+  ends its output with an `[agy-permission-request]` block (exit 75). The
+  slash commands and `agy:runner` hand that to the parent thread, which asks
+  the user (Allow once / Always allow / Deny) and resumes the same
+  conversation with `--resume <id> --allow-once|--allow-always "<cmd>"`.
+  Grants are exact-match `command(<cmd>)` rules; once-rules are removed when
+  the call ends. Nothing is ever approved without the user.
+
+### Fixed
+- `--model` no longer serializes calls. It used to swap the `model` field in
+  `~/.gemini/antigravity-cli/settings.json` under a global lock, so a second
+  `--model` call (another Claude Code session, a background `agy:runner`)
+  blocked until the first finished, and could briefly flip the model of an
+  open TUI. The wrapper now passes agy's native per-process `--model` flag:
+  no settings patching, no lock, safe to run in parallel. The old
+  lock/patch helpers are no longer used by `ask` and can be removed in a
+  follow-up.
+
 ## [0.4.1] - 2026-05-27
 
 ### Fixed

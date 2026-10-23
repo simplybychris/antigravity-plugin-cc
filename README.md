@@ -15,11 +15,12 @@ just Bash and `agy`.
   it for you if it is missing.
 - **`/agy:ask [--model <alias>] <prompt>`** — one-shot prompt through `agy -p`;
   returns the raw response.
-- **`/agy:delegate [--background] [--model <alias>] <task>`** — hand a task
-  to the `agy:runner` subagent. `--background` for long jobs.
+- **`/agy:delegate [--background] [--model <alias>] <task>`** — hand an
+  execution task to `agy`; Claude briefs it, checks the result and reports
+  back. `--background` for long jobs.
 - **`/agy:research [--background] [--model <alias>] <topic>`** — delegate a
   deep-research investigation; wraps the topic in a structured prompt and
-  routes through `agy:runner`.
+  returns agy's report.
 - **`/agy:image <description>`** — generate an image with `agy`'s built-in
   `generate_image` tool (Imagen under the hood). Optional `--name` and
   `--output`.
@@ -77,7 +78,7 @@ terminal to complete OAuth — or export `ANTIGRAVITY_API_KEY`.
 
 Returns Antigravity's response verbatim.
 
-### Delegate a task to the `agy:runner` subagent
+### Delegate a task
 
 ```text
 /agy:delegate refactor the SQL queries in src/db/queries.go to use prepared statements
@@ -96,8 +97,12 @@ You can also delegate by talking to Claude:
 Ask agy to look at this file and suggest a simpler design.
 ```
 
-The plugin's selection rules route through the `agy:runner` subagent
-automatically.
+`/agy:delegate` calls the wrapper directly (no subagent hop). Claude stays
+the orchestrator: it asks agy for a short report (files changed, commands
+run, results) instead of a long write-up, reads it in full, checks the diff
+and tests, and tells you what happened in a few lines rather than pasting
+agy's output back. Talking to Claude ("ask agy to…") may also route through
+the `agy:runner` subagent.
 
 ### Review the current diff
 
@@ -134,7 +139,7 @@ by this plugin.
 ```
 
 The command wraps your topic in a research-oriented preamble (background,
-key findings, caveats, sources) and delegates to `agy:runner`. Long
+key findings, caveats, sources) and returns agy's report verbatim. Long
 investigations work well in `--background`.
 
 ### Generate an image
@@ -154,7 +159,8 @@ you want the wrapper to copy it next to your project.
 Under the hood, the plugin is a thin wrapper around your local `agy` install:
 
 ```
-Claude Code  →  /agy:*  →  agy:runner subagent  →  agy-run.sh  →  agy -p "..."
+Claude Code  →  /agy:*  →  agy-run.sh  →  agy -p "..."
+Claude Code  →  agy:runner subagent (programmatic delegation)  →  agy-run.sh  →  agy -p "..."
 ```
 
 - The plugin does **not** ship its own Antigravity runtime — it uses your
@@ -162,9 +168,10 @@ Claude Code  →  /agy:*  →  agy:runner subagent  →  agy-run.sh  →  agy -p
 - The wrapper script
   ([`plugins/agy/scripts/agy-run.sh`](./plugins/agy/scripts/agy-run.sh))
   handles binary discovery, auth detection, and exit codes.
-- The `agy:runner` subagent is a *forwarder*: it invokes the wrapper exactly
-  once per request and returns Antigravity's output verbatim. No
-  reinterpretation.
+- Slash commands call the wrapper directly with Bash (background-capable via
+  `run_in_background`). The `agy:runner` subagent (Haiku) is a *forwarder*
+  for programmatic delegation: it invokes the wrapper exactly once per
+  request and returns Antigravity's output verbatim.
 
 ## Configuration
 
@@ -198,11 +205,13 @@ Google through `agy`'s normal channels.
 Yes — the plugin uses your local install. Running `agy` directly in a
 terminal keeps working exactly as before.
 
-### Why a subagent instead of just a slash command?
+### Why do the slash commands skip the subagent?
 
-Subagents in Claude Code can run in the background and report back when
-finished. That is the workflow you want when you "hand this off to another
-model and keep working" — which is the whole point of delegating to `agy`.
+Speed. A subagent hop adds a model start-up plus a second full re-typing of
+agy's output, often 10+ seconds per delegation. Claude Code's Bash tool can
+already run in the background and notify on completion, so `/agy:delegate`
+and `/agy:research` call the wrapper directly. `agy:runner` remains for
+programmatic delegation and runs on Haiku to keep that hop cheap.
 
 ## Inspiration
 
