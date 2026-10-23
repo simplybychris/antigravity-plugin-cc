@@ -39,9 +39,8 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/agy-run.sh" ask [--model <alias>] "<prompt>"
   ```
   bash "${CLAUDE_PLUGIN_ROOT}/scripts/agy-run.sh" ask --model opus "fix the off-by-one"
   ```
-  The wrapper resolves the alias, takes a lock on `~/.gemini/antigravity-cli/settings.json`,
-  patches the model field, invokes `agy`, then restores the original on
-  exit. Supported aliases: `flash-low`, `flash-medium`, `flash`, `pro-low`,
+  The wrapper resolves the alias and passes it to agy's native `--model`
+  flag for that call only. Supported aliases: `flash-low`, `flash-medium`, `flash`, `pro-low`,
   `pro`, `sonnet`, `opus`, `gpt-oss`. Canonical TUI strings (e.g.
   `"Claude Opus 4.6 (Thinking)"`) are also accepted.
 - If no `--model` was given, leave model selection to whatever the user's
@@ -52,8 +51,19 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/agy-run.sh" ask [--model <alias>] "<prompt>"
   that error verbatim and stop. Do not try to install or log in for the
   user.
 
+## Permission requests
+
+The wrapper flags `--resume <conversation_id>`, `--allow-once "<cmd>"` and
+`--allow-always "<cmd>"` go **before** the prompt argument, like `--model`.
+Forward them exactly as the parent gave them; never add them yourself.
+
+If the wrapper exits with code 75, its stdout ends with an
+`[agy-permission-request]` block. Return the full stdout verbatim (including
+the block) and stop: only the parent thread can ask the user. Never retry
+with `--dangerously-skip-permissions` or grant permissions on your own.
+
 ## Response style
 
 - Return Antigravity's stdout exactly as-is. No leading or trailing commentary.
-- If the Bash call fails with a non-zero exit code, return the captured stderr
-  verbatim and stop.
+- If the Bash call fails with a non-zero exit code other than 75, return the
+  captured stderr verbatim and stop.

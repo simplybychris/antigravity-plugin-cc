@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Permission relay. Headless `agy -p` auto-denies anything it would prompt
+  for, so delegated tasks silently failed to run commands. `ask` now runs agy
+  with `--mode accept-edits --output-format json`; when agy denies something,
+  the wrapper reads the exact command from the conversation transcript and
+  ends its output with an `[agy-permission-request]` block (exit 75). The
+  slash commands and `agy:runner` hand that to the parent thread, which asks
+  the user (Allow once / Always allow / Deny) and resumes the same
+  conversation with `--resume <id> --allow-once|--allow-always "<cmd>"`.
+  Grants are exact-match `command(<cmd>)` rules; once-rules are removed when
+  the call ends. Nothing is ever approved without the user.
+
 ### Fixed
 - `--model` no longer serializes calls. It used to swap the `model` field in
   `~/.gemini/antigravity-cli/settings.json` under a global lock, so a second

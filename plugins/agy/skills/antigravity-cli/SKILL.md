@@ -46,6 +46,17 @@ are also accepted verbatim (e.g. `"Claude Opus 4.6 (Thinking)"`).
 Run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/agy-run.sh" help` for the
 authoritative list.
 
+## Permission relay
+
+`ask` runs agy with `--mode accept-edits --output-format json`. Permissions
+agy can't prompt for headlessly come back as an `[agy-permission-request]`
+block (exit 75) with the conversation id and exact commands. The parent
+thread asks the user, then resumes with `--resume <id>` and
+`--allow-once "<cmd>"` / `--allow-always "<cmd>"` (exact-match
+`command(<cmd>)` rules in `~/.gemini/antigravity-cli/settings.json`;
+once-rules are removed when the call ends). Set `AGY_PERMISSION_MODE` to
+override the agy mode.
+
 ## agy-native flags worth knowing
 
 Run `agy --help` for the full list. Useful ones that go **after** the
