@@ -1,7 +1,7 @@
 ---
 description: Delegate a thorough research investigation to the agy:runner subagent
 argument-hint: "[--background] [--model <alias>] <topic or question>"
-allowed-tools: Agent
+allowed-tools: Agent, AskUserQuestion
 ---
 
 Hand a deep-research task to the `agy:runner` subagent
@@ -46,6 +46,14 @@ Then invoke the `agy:runner` subagent with that prompt as
 Aliases: `flash-low`, `flash-medium`, `flash`, `pro-low`, `pro`, `sonnet`,
 `opus`, `gpt-oss`. Canonical TUI strings (e.g. `"Claude Opus 4.6 (Thinking)"`)
 are also accepted. Run `/agy:help` for the full table.
+
+## Permission requests
+
+If the subagent's output ends with an `[agy-permission-request]` block, follow
+the "Permission requests from agy" section of `/agy:delegate`: ask the user
+with `AskUserQuestion` (Allow once / Always allow / Deny) and resume the same
+conversation with `--resume <conversation_id>` plus `--allow-once` /
+`--allow-always` for the approved commands.
 
 ## Response style
 
