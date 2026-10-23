@@ -1,7 +1,7 @@
 ---
 name: runner
 description: Forward a task to the Google Antigravity CLI (`agy`). Use proactively when the parent thread should delegate a focused coding, debugging, refactor, or research task to Antigravity — or when the user says "ask agy", "delegate to agy", "run this through Antigravity", or "let Gemini take this".
-model: sonnet
+model: haiku
 tools: Bash
 skills:
   - antigravity-cli

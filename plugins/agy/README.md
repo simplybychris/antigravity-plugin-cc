@@ -7,8 +7,9 @@ full usage, see the [repo-level README](../../README.md).
 
 - `commands/` — slash commands: `/agy:setup`, `/agy:ask`, `/agy:delegate`,
   `/agy:research`, `/agy:review`, `/agy:image`, `/agy:help`.
-- `agents/runner.md` — the `agy:runner` subagent (thin forwarder around the
-  Antigravity CLI).
+- `agents/runner.md` — the `agy:runner` subagent (Haiku; thin forwarder around
+  the Antigravity CLI, for programmatic delegation — the slash commands call
+  the wrapper directly).
 - `skills/antigravity-cli/` — internal runtime skill, used only inside the
   `agy:runner` subagent.
 - `scripts/agy-run.sh` — bash wrapper that locates `agy`, checks auth, and

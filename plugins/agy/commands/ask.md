@@ -78,5 +78,5 @@ Notes:
 - If the wrapper reports `agy is not installed` or `not authenticated`, stop
   and tell the user to run `/agy:setup`.
 - If the user's request is empty, ask what they want to ask Antigravity.
-- For multi-step or long-running work, suggest `/agy:delegate`, which routes
-  through the `agy:runner` subagent and supports `--background`.
+- For multi-step or long-running work, suggest `/agy:delegate`, which
+  supports `--background` and has Claude check the result.

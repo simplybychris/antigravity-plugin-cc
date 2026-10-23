@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Faster delegation. `/agy:delegate` and `/agy:research` call the wrapper
+  directly with Bash (`run_in_background` for `--background`) instead of going
+  through the `agy:runner` subagent, which added a model start-up and a
+  second re-typing of agy's output (~10s+ per call).
+- `/agy:delegate` is now execution-oriented: Claude briefs agy, asks it for a
+  short report (files changed, commands run, results) to cut agy's output
+  tokens, checks the diff/tests itself and reports in a few lines instead of
+  pasting agy's output verbatim.
+- `agy:runner` runs on Haiku instead of Sonnet.
+
 ### Added
 - Permission relay. Headless `agy -p` auto-denies anything it would prompt
   for, so delegated tasks silently failed to run commands. `ask` now runs agy
