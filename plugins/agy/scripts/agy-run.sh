@@ -399,7 +399,7 @@ cmd_image() {
       *)         positional+=("$1"); shift ;;
     esac
   done
-  description="${positional[*]}"
+  description="${positional[*]:-}"
   if [ -z "$description" ]; then
     echo "error: image requires a description" >&2
     exit 64

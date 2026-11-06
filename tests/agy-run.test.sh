@@ -293,6 +293,11 @@ test_help_shows_live_resolution() {
     && stdout_lacks "settings.json"
 }
 
+test_image_without_description() {
+  run_wrapper image
+  exited 64 && stderr_has "image requires a description"
+}
+
 leave_dead_patch() {
   cp "$1/settings.json" "$1/settings.json.agy-plugin.bak"
   printf '{\n  "model": "Claude Opus 4.6 (Thinking)"\n}\n' > "$1/settings.json"
