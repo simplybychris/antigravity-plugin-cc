@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-11-06
+
+Model aliases no longer go stale when Google rotates model versions
+([#4](https://github.com/simplybychris/antigravity-plugin-cc/issues/4)).
+
+### Added
+- `tests/agy-run.test.sh`: tests for alias resolution, the `agy models`
+  output formats (names only, `id<TAB>name`, CRLF), the agy version check,
+  errors, help output, and recovery of a settings backup left by a killed
+  0.4.x run. They run against a stub `agy` in a temporary `HOME`.
+  — issue #4 · 2026-11-06 · impl: claude-opus-5-5 · review: claude-opus-5-5 (independent audit subagent) · 9da72ff
+
+### Changed
+- `--model` aliases resolve at call time against `agy models` and pick the
+  newest matching version, so `flash` now means Gemini 3.8 Flash (High)
+  instead of the retired Gemini 3.5 Flash. On a version tie `sonnet` and
+  `opus` prefer the Thinking variant and `gpt-oss` the Medium one. Any
+  model name or id listed by `agy models` is accepted verbatim,
+  case-insensitive. Values that are not listed, and aliases whose model
+  family the account does not offer, fail with exit 64 and print the
+  current table.
+  — issue #4 · 2026-11-06 · impl: claude-opus-5-5 · review: claude-opus-5-5 (independent audit subagent) · 9da72ff
+- The wrapper passes the model id to `agy`'s native `--model` flag instead
+  of patching `~/.gemini/antigravity-cli/settings.json`, so the TUI's
+  selected model no longer flips during a call. Requires `agy` 1.2.0 or
+  newer: older builds either lack `--model` or ignore it in `-p` runs, and
+  the wrapper now refuses them with a hint to run `agy update`.
+  — issue #4 · 2026-11-06 · impl: claude-opus-5-5 · review: claude-opus-5-5 (independent audit subagent) · 9da72ff
+- `/agy:help` shows what each alias resolves to on the current account and
+  lists the models `agy` offers. Command, agent and skill docs describe the
+  new behaviour.
+  — issue #4 · 2026-11-06 · impl: claude-opus-5-5 · review: claude-opus-5-5 (independent audit subagent) · 9da72ff, 81e83ba
+
+### Removed
+- The settings lockfile and in-place patching of `settings.json`. A
+  settings backup left by a killed 0.4.x run is still restored on the next
+  call.
+  — issue #4 · 2026-11-06 · impl: claude-opus-5-5 · review: claude-opus-5-5 (independent audit subagent) · 9da72ff
+
+### Fixed
+- `/agy:image` with no description printed `positional[*]: unbound
+  variable` under bash 3.2 instead of `error: image requires a
+  description`.
+  — audit of #4 · 2026-11-06 · impl: claude-opus-5-5 · review: claude-opus-5-5 (independent audit subagent) · d3b981f
+
 ## [0.4.1] - 2026-05-27
 
 ### Fixed
