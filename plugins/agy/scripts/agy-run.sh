@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # agy-run.sh — Claude Code wrapper around Google Antigravity CLI (`agy`).
 # Subcommands: check | ask | review | image | help.
-# `--model` (on ask) overrides the model for one call via locked
-# settings.json patching, restored on exit.
+# `--model` (on ask) resolves an alias against `agy models` and passes the
+# result to agy's own --model flag for that call only.
 
 set -euo pipefail
 
@@ -56,7 +56,7 @@ cmd_check() {
 JSON
     return 0
   fi
-  version="$("$path" --version 2>/dev/null | head -n1 || echo unknown)"
+  version="$("$path" --version </dev/null 2>/dev/null | head -n1 || echo unknown)"
   auth="$(auth_status)"
   printf '{ "installed": true, "path": "%s", "version": "%s", "auth": "%s", "error": "" }\n' \
     "$(j_esc "$path")" "$(j_esc "$version")" "$(j_esc "$auth")"
@@ -76,26 +76,146 @@ require_ready() {
   echo "$path"
 }
 
-# fd arg lets cmd_help reuse the same table on stdout.
+# Each row: comma-separated aliases | ERE matched against the lowercased
+# display name from `agy models` | ERE that wins a version tie (may be
+# empty) | description shown when no listing is available. Aliases pick the
+# newest version in their family.
+MODEL_ALIASES='flash-low|^gemini [0-9.]+ flash [(]low[)]$||newest Gemini Flash (Low)
+flash-medium,flash-med|^gemini [0-9.]+ flash [(]medium[)]$||newest Gemini Flash (Medium)
+flash,flash-high|^gemini [0-9.]+ flash [(]high[)]$||newest Gemini Flash (High)
+pro-low|^gemini [0-9.]+ pro [(]low[)]$||newest Gemini Pro (Low)
+pro,pro-high|^gemini [0-9.]+ pro [(]high[)]$||newest Gemini Pro (High)
+sonnet,claude-sonnet|^claude sonnet [0-9.]+( [(].*[)])?$|[(]thinking[)]$|newest Claude Sonnet
+opus,claude-opus|^claude opus [0-9.]+( [(].*[)])?$|[(]thinking[)]$|newest Claude Opus
+gpt-oss,gpt-oss-120b|^gpt-oss 120b( [(].*[)])?$|[(]medium[)]$|GPT-OSS 120B'
+
+# Older agy builds lack --model, ignore it in -p runs, or hang in
+# `agy models` on an open stdin.
+MIN_AGY_VERSION="1.2.0"
+
+TAB="$(printf '\t')"
+
+AWK_VERSION_NEWER='
+function newer(a, b,    x, y, na, nb, n, i) {
+  na = split(a, x, "."); nb = split(b, y, ".")
+  n = na > nb ? na : nb
+  for (i = 1; i <= n; i++) {
+    if (x[i] + 0 > y[i] + 0) return 1
+    if (x[i] + 0 < y[i] + 0) return 0
+  }
+  return 0
+}'
+
+require_model_support() {
+  local path="$1" raw version
+  raw="$("$path" --version </dev/null 2>/dev/null || true)"
+  version="$(printf '%s\n' "$raw" | grep -oE '[0-9]+[.][0-9]+([.][0-9]+)?' | head -n1 || true)"
+  if [ -z "$version" ]; then
+    echo "[wrapper] note: could not read the agy version; assuming --model works" >&2
+    return 0
+  fi
+  if [ "$(awk -v a="$MIN_AGY_VERSION" -v b="$version" "$AWK_VERSION_NEWER"'
+      BEGIN { print newer(a, b) }')" = 1 ]; then
+    echo "error: agy $version is too old for --model (needs $MIN_AGY_VERSION or newer)." >&2
+    echo "       update it with \`agy update\`." >&2
+    exit 1
+  fi
+}
+
+# Prints "id<TAB>display name" per model. Some agy builds print names only,
+# in which case the id column is empty.
+list_models() {
+  local path="$1" raw
+  raw="$("$path" models </dev/null 2>/dev/null)" || return 1
+  printf '%s\n' "$raw" | awk '
+    { sub(/\r$/, "") }
+    /^[[:space:]]*$/ || /:[[:space:]]*$/ || /^Fetching / { next }
+    {
+      tab = index($0, "\t")
+      if (tab > 0) { id = substr($0, 1, tab - 1); name = substr($0, tab + 1) }
+      else { id = ""; name = $0 }
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", id)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
+      if (name != "") print id "\t" name
+    }'
+}
+
+# Line of $1 (list_models output) whose name matches ERE $2 and has the
+# newest version. On a version tie, a name matching ERE $3 wins.
+_newest_match() {
+  printf '%s\n' "$1" | PATTERN="$2" PREFER="${3:-}" awk -F '\t' "$AWK_VERSION_NEWER"'
+    NF >= 2 && tolower($2) ~ ENVIRON["PATTERN"] {
+      version = ""
+      count = split(tolower($2), word, " ")
+      for (i = 1; i <= count; i++) if (word[i] ~ /^[0-9]+([.][0-9]+)*$/) { version = word[i]; break }
+      preferred = ENVIRON["PREFER"] != "" && tolower($2) ~ ENVIRON["PREFER"]
+      if (best == "" || newer(version, best_version) ||
+          (!newer(best_version, version) && preferred && !best_preferred)) {
+        best = $0; best_version = version; best_preferred = preferred
+      }
+    }
+    END { if (best != "") print best }'
+}
+
+# Line of $1 whose id or name equals $2, ignoring case.
+_exact_match() {
+  printf '%s\n' "$1" | WANT="$2" awk -F '\t' '
+    NF >= 2 && (tolower($1) == tolower(ENVIRON["WANT"]) || tolower($2) == tolower(ENVIRON["WANT"])) { print; exit }'
+}
+
+_model_name() {
+  printf '%s' "${1#*"$TAB"}"
+}
+
+# The id when the listing has one, otherwise the display name.
+_model_arg() {
+  local id="${1%%"$TAB"*}"
+  if [ -n "$id" ]; then
+    printf '%s' "$id"
+  else
+    _model_name "$1"
+  fi
+}
+
+# Prints "pattern|prefer|description" for alias $1 (already lowercased).
+_alias_row() {
+  local want="$1" aliases pattern prefer description
+  case "$want" in ""|*,*) return 1 ;; esac
+  while IFS='|' read -r aliases pattern prefer description; do
+    case ",$aliases," in
+      *",$want,"*) printf '%s|%s|%s' "$pattern" "$prefer" "$description"; return 0 ;;
+    esac
+  done <<<"$MODEL_ALIASES"
+  return 1
+}
+
+# $1 = output fd, $2 = list_models output (may be empty).
 print_model_table() {
-  local fd="${1:-2}"
+  local fd="${1:-2}" models="${2:-}"
   {
-    echo "Aliases (case-insensitive):"
-    echo "  flash-low                     -> Gemini 3.5 Flash (Low)"
-    echo "  flash-medium, flash-med       -> Gemini 3.5 Flash (Medium)"
-    echo "  flash, flash-high             -> Gemini 3.5 Flash (High)"
-    echo "  pro-low                       -> Gemini 3.1 Pro (Low)"
-    echo "  pro, pro-high                 -> Gemini 3.1 Pro (High)"
-    echo "  sonnet, claude-sonnet         -> Claude Sonnet 4.6 (Thinking)"
-    echo "  opus, claude-opus             -> Claude Opus 4.6 (Thinking)"
-    echo "  gpt-oss, gpt-oss-120b         -> GPT-OSS 120B (Medium)"
-    echo
-    echo "Canonical strings (also accepted verbatim, case-sensitive):"
-    echo "  Gemini 3.5 Flash (Low|Medium|High)"
-    echo "  Gemini 3.1 Pro (Low|High)"
-    echo "  Claude Sonnet 4.6 (Thinking)"
-    echo "  Claude Opus 4.6 (Thinking)"
-    echo "  GPT-OSS 120B (Medium)"
+    if [ -n "$models" ]; then
+      echo "Aliases (case-insensitive), resolved against \`agy models\`:"
+    else
+      echo "Aliases (case-insensitive). \`agy models\` could not be read, so they are shown unresolved:"
+    fi
+    local aliases pattern prefer description match target
+    while IFS='|' read -r aliases pattern prefer description; do
+      target="$description"
+      if [ -n "$models" ]; then
+        match="$(_newest_match "$models" "$pattern" "$prefer")"
+        if [ -n "$match" ]; then
+          target="$(_model_name "$match")"
+        else
+          target="(not available: $description)"
+        fi
+      fi
+      printf '  %-28s  -> %s\n' "$(printf '%s' "$aliases" | sed 's/,/, /g')" "$target"
+    done <<<"$MODEL_ALIASES"
+    if [ -n "$models" ]; then
+      echo
+      echo "Available models (names and ids are accepted verbatim, case-insensitive):"
+      printf '%s\n' "$models" | awk -F '\t' '{ if ($1 != "") printf "  %-32s  %s\n", $2, $1; else printf "  %s\n", $2 }'
+    fi
   } >&"$fd"
 }
 
@@ -106,71 +226,57 @@ _current_default_model() {
     | head -n1
 }
 
-resolve_model_alias() {
-  local input="${1:-}"
-  if [ -z "$input" ]; then
-    echo "error: --model requires a non-empty value (e.g. --model pro)" >&2
-    print_model_table 2
-    local current; current="$(_current_default_model 2>/dev/null || true)"
-    if [ -n "$current" ]; then
-      echo >&2
-      echo "Tip: omit --model to use your current default (\"$current\")." >&2
-    fi
-    exit 64
+model_value_error() {
+  echo "error: --model requires a non-empty value (e.g. --model pro)" >&2
+  local path models=""
+  if path="$(find_agy)"; then
+    models="$(list_models "$path" || true)"
   fi
-  case "$input" in
-    "Gemini 3.5 Flash (Low)"|\
-    "Gemini 3.5 Flash (Medium)"|\
-    "Gemini 3.5 Flash (High)"|\
-    "Gemini 3.1 Pro (Low)"|\
-    "Gemini 3.1 Pro (High)"|\
-    "Claude Sonnet 4.6 (Thinking)"|\
-    "Claude Opus 4.6 (Thinking)"|\
-    "GPT-OSS 120B (Medium)")
-      printf '%s' "$input"
-      return 0 ;;
-  esac
-  # bash 3.2 (macOS /bin/bash) lacks ${var,,}, hence tr.
-  local lc; lc="$(printf '%s' "$input" | tr '[:upper:]' '[:lower:]')"
-  case "$lc" in
-    flash-low)                  printf '%s' "Gemini 3.5 Flash (Low)" ;;
-    flash-medium|flash-med)     printf '%s' "Gemini 3.5 Flash (Medium)" ;;
-    flash|flash-high)           printf '%s' "Gemini 3.5 Flash (High)" ;;
-    pro-low)                    printf '%s' "Gemini 3.1 Pro (Low)" ;;
-    pro|pro-high)               printf '%s' "Gemini 3.1 Pro (High)" ;;
-    sonnet|claude-sonnet)       printf '%s' "Claude Sonnet 4.6 (Thinking)" ;;
-    opus|claude-opus)           printf '%s' "Claude Opus 4.6 (Thinking)" ;;
-    gpt-oss|gpt-oss-120b)       printf '%s' "GPT-OSS 120B (Medium)" ;;
-    *)
-      echo "error: unknown model alias '$input'" >&2
-      print_model_table 2
-      exit 64 ;;
-  esac
+  print_model_table 2 "$models"
+  local current; current="$(_current_default_model 2>/dev/null || true)"
+  if [ -n "$current" ]; then
+    echo >&2
+    echo "Tip: omit --model to use your current default (\"$current\")." >&2
+  fi
+  exit 64
 }
 
-validate_settings_file() {
-  if [ ! -f "$AGY_SETTINGS_FILE" ]; then
-    echo "error: $AGY_SETTINGS_FILE not found." >&2
-    echo "       run \`agy\` once interactively to create it." >&2
-    exit 1
-  fi
-  if [ ! -s "$AGY_SETTINGS_FILE" ]; then
-    echo "error: $AGY_SETTINGS_FILE is empty." >&2
-    exit 1
-  fi
-  if command -v python3 >/dev/null 2>&1; then
-    if ! python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$AGY_SETTINGS_FILE" 2>/dev/null; then
-      echo "error: $AGY_SETTINGS_FILE is not valid JSON." >&2
+# Prints the value for `agy --model`: the id when `agy models` lists one,
+# otherwise the display name.
+resolve_model() {
+  local path="$1" input="$2"
+  local lc; lc="$(printf '%s' "$input" | tr '[:upper:]' '[:lower:]')"
+  local row=""; row="$(_alias_row "$lc" || true)"
+  local models
+  if ! models="$(list_models "$path")" || [ -z "$models" ]; then
+    if [ -n "$row" ]; then
+      echo "error: could not list models with \`agy models\` (run it directly to see why)." >&2
+      echo "       aliases need that list; pass the full model name instead." >&2
       exit 1
     fi
+    echo "[wrapper] note: could not list models; passing '$input' to agy unchecked" >&2
+    printf '%s' "$input"
+    return 0
   fi
-  if ! grep -q '"model"' "$AGY_SETTINGS_FILE"; then
-    echo "error: $AGY_SETTINGS_FILE has no \"model\" field." >&2
-    echo "       open \`agy\` and pick a model with /model first." >&2
-    exit 1
+  local match pattern prefer description
+  match="$(_exact_match "$models" "$input")"
+  if [ -z "$match" ] && [ -n "$row" ]; then
+    IFS='|' read -r pattern prefer description <<<"$row"
+    match="$(_newest_match "$models" "$pattern" "$prefer")"
+    [ -n "$match" ] || echo "error: alias '$input' has no matching model in \`agy models\` (expected: $description)" >&2
+  elif [ -z "$match" ]; then
+    echo "error: unknown model '$input' (not an alias and not listed by \`agy models\`)" >&2
   fi
+  if [ -n "$match" ]; then
+    _model_arg "$match"
+    return 0
+  fi
+  print_model_table 2 "$models"
+  exit 64
 }
 
+# Recovers settings.json left patched by a killed 0.4.x run, which swapped
+# the model in place instead of passing --model.
 restore_orphaned_backup() {
   [ -f "$AGY_SETTINGS_SENTINEL" ] || {
     if [ -f "$AGY_SETTINGS_BACKUP" ]; then
@@ -188,92 +294,7 @@ restore_orphaned_backup() {
     echo "[wrapper] recovered orphaned settings backup from PID ${pid:-unknown}" >&2
   fi
   rm -f "$AGY_SETTINGS_SENTINEL"
-}
-
-# mkdir-based lock; macOS has no flock(1). Dead-holder detection avoids
-# SIGKILL deadlocks.
-with_settings_lock() {
-  local fn="$1"; shift
-  local attempt=0
-  local max_wait="${AGY_LOCK_WAIT_SECONDS:-600}"
-  while ! mkdir "$AGY_SETTINGS_LOCKDIR" 2>/dev/null; do
-    local holder_pid_file="${AGY_SETTINGS_LOCKDIR}/pid"
-    if [ -f "$holder_pid_file" ]; then
-      local holder_pid; holder_pid="$(cat "$holder_pid_file" 2>/dev/null || true)"
-      if [ -n "$holder_pid" ] && ! kill -0 "$holder_pid" 2>/dev/null; then
-        rm -rf "$AGY_SETTINGS_LOCKDIR"
-        continue
-      fi
-    fi
-    attempt=$((attempt + 1))
-    if [ "$attempt" -gt "$max_wait" ]; then
-      echo "error: could not acquire settings lock after ${max_wait}s" >&2
-      exit 1
-    fi
-    sleep 1
-  done
-  echo "$$" > "${AGY_SETTINGS_LOCKDIR}/pid"
-  local rc=0
-  "$fn" "$@" || rc=$?
   rm -rf "$AGY_SETTINGS_LOCKDIR"
-  return "$rc"
-}
-
-# python3 preferred for correctness; sed fallback only matches single-line
-# "model": "..." (the format agy itself writes).
-_patch_model_field() {
-  local canonical="$1"
-  local tmp; tmp="$(mktemp "${AGY_SETTINGS_FILE}.tmp.XXXXXX")"
-  if command -v python3 >/dev/null 2>&1; then
-    python3 - "$AGY_SETTINGS_FILE" "$canonical" "$tmp" <<'PY'
-import json, sys
-src, model, dst = sys.argv[1], sys.argv[2], sys.argv[3]
-with open(src) as f:
-    data = json.load(f)
-data["model"] = model
-with open(dst, "w") as f:
-    json.dump(data, f, indent=2)
-    f.write("\n")
-PY
-  else
-    local esc; esc="$(printf '%s' "$canonical" | sed -e 's/[\/&]/\\&/g')"
-    sed -E "s/^([[:space:]]*\"model\"[[:space:]]*:[[:space:]]*\")[^\"]*(\".*)$/\1${esc}\2/" \
-        "$AGY_SETTINGS_FILE" > "$tmp"
-    echo "[wrapper] note: python3 missing, used sed fallback to patch settings.json" >&2
-  fi
-  mv "$tmp" "$AGY_SETTINGS_FILE"
-}
-
-_restore_settings() {
-  if [ -f "$AGY_SETTINGS_BACKUP" ]; then
-    mv "$AGY_SETTINGS_BACKUP" "$AGY_SETTINGS_FILE"
-  fi
-  rm -f "$AGY_SETTINGS_SENTINEL"
-}
-
-_do_patched_run() {
-  local canonical="$1"; shift
-  cp -p "$AGY_SETTINGS_FILE" "$AGY_SETTINGS_BACKUP"
-  printf '%s\n%s\n' "$$" "$canonical" > "$AGY_SETTINGS_SENTINEL"
-  trap '_restore_settings' EXIT INT TERM HUP
-  _patch_model_field "$canonical"
-  local rc=0
-  "$@" || rc=$?
-  _restore_settings
-  trap - EXIT INT TERM HUP
-  return "$rc"
-}
-
-# `--` separator guards against canonical names that start with `-`.
-with_model_override() {
-  local canonical="$1"; shift
-  if [ "${1:-}" != "--" ]; then
-    echo "internal: with_model_override expects '--' after canonical name" >&2
-    exit 70
-  fi
-  shift
-  validate_settings_file
-  with_settings_lock _do_patched_run "$canonical" "$@"
 }
 
 cmd_ask() {
@@ -284,7 +305,7 @@ cmd_ask() {
       --model)
         model_flag_seen=1
         # `shift 2` on a one-arg list would `set -e`-exit silently; handle
-        # the empty case so resolve_model_alias prints the real error.
+        # the empty case so model_value_error prints the real error.
         if [ $# -ge 2 ]; then
           model_alias="$2"; shift 2
         else
@@ -298,10 +319,9 @@ cmd_ask() {
       *)         break ;;
     esac
   done
-  # Resolve model before prompt check so empty --model gets the right error.
-  local canonical=""
-  if [ "$model_flag_seen" -eq 1 ]; then
-    canonical="$(resolve_model_alias "$model_alias")"
+  # Check the value before the prompt so `ask --model` reports the flag.
+  if [ "$model_flag_seen" -eq 1 ] && [ -z "$model_alias" ]; then
+    model_value_error
   fi
   local prompt="${1:-}"
   shift || true
@@ -311,8 +331,11 @@ cmd_ask() {
   fi
   local path
   path="$(require_ready)"
-  if [ -n "$canonical" ]; then
-    with_model_override "$canonical" -- "$path" -p "$prompt" "$@"
+  if [ "$model_flag_seen" -eq 1 ]; then
+    require_model_support "$path"
+    local model
+    model="$(resolve_model "$path" "$model_alias")"
+    "$path" --model "$model" -p "$prompt" "$@"
   else
     "$path" -p "$prompt" "$@"
   fi
@@ -446,25 +469,28 @@ Slash commands
 
 Model selection (--model)
 HELP
-  print_model_table 1
+  local path models=""
+  if path="$(find_agy)"; then
+    models="$(list_models "$path" || true)"
+  fi
+  print_model_table 1 "$models"
   cat <<'HELP'
 
 How --model works
-  The plugin manages the "model" field in ~/.gemini/antigravity-cli/settings.json
-  for the duration of a single call: it takes a lock, swaps in your requested
-  model, invokes agy, and restores the original on exit (including SIGINT /
-  SIGTERM). If your TUI is open in parallel, its selected model will flip
-  for the duration of the call and revert when the call finishes.
+  The wrapper reads the model list from `agy models` at call time, resolves
+  the alias to the newest matching version, and passes it to agy as
+  `--model <id>` (or the display name when the list has no ids) for that
+  call only. The default model you picked in the agy TUI is left untouched.
 
-  Unknown aliases fail with exit 64 — typo safety beats forward-compat. If
-  Google ships a new model, update the plugin.
+  Names or ids that `agy models` does not list fail with exit 64, and so do
+  aliases whose model family your account does not offer. When Google
+  rotates model versions, aliases follow without a plugin update.
+
+  Requires agy 1.2.0 or newer.
 
 Underlying CLI
-  Run `agy --help` for agy's own flags: --add-dir, -c/--continue,
-  --conversation, --dangerously-skip-permissions, -i/--prompt-interactive,
-  --log-file, -p/--print, --print-timeout, --sandbox.
-
-  Subcommands: changelog, help, install, plugin/plugins, update.
+  Run `agy --help` for agy's own flags and `agy models` for the models
+  available to your account.
 HELP
 }
 
