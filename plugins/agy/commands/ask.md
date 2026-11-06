@@ -33,9 +33,10 @@ argument so characters like `"`, `$`, `;`, `\` and backticks cannot break
 out.
 
 Aliases for `<alias>`: `flash-low`, `flash-medium`, `flash`, `pro-low`,
-`pro`, `sonnet`, `opus`, `gpt-oss`. The canonical TUI strings (e.g.
-`"Claude Opus 4.6 (Thinking)"`) are also accepted. Run `/agy:help` for the
-full table.
+`pro`, `sonnet`, `opus`, `gpt-oss`. Each alias resolves at call time to the
+newest matching model listed by `agy models`. Any model name or id from that
+list (e.g. `"Gemini 3.8 Flash (High)"`) is also accepted. Run `/agy:help` for
+the current table.
 
 Notes:
 

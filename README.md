@@ -26,7 +26,7 @@ just Bash and `agy`.
 - **`/agy:review [focus]`** — ask Antigravity to review your current
   `git diff`.
 - **`/agy:help`** — show all commands, supported `--model` aliases, and
-  canonical model names.
+  the models your `agy` currently offers.
 - **`agy:runner` subagent** — thin forwarding wrapper around the Antigravity
   CLI; available as `subagent_type: "agy:runner"` for programmatic
   delegation.
@@ -36,7 +36,7 @@ just Bash and `agy`.
 - **Claude Code** with plugin-marketplace support
   (`/plugin marketplace add …`).
 - **Antigravity CLI (`agy`)** installed locally. `/agy:setup` can install it
-  on first run.
+  on first run. `--model` needs `agy` 1.2.0 or newer.
 - **Auth** for `agy`: either OAuth cached in the system keyring (after one
   interactive run of `agy`) or `ANTIGRAVITY_API_KEY` exported in your shell.
 - **Bash** and **git** in `PATH`. macOS, Linux, or WSL.
@@ -117,12 +117,16 @@ Stage or make some changes, then:
 ```
 
 Supported aliases: `flash-low`, `flash-medium`, `flash`, `pro-low`, `pro`,
-`sonnet`, `opus`, `gpt-oss`. The canonical TUI strings (e.g.
-`"Claude Opus 4.6 (Thinking)"`) are also accepted. Run `/agy:help` for the
-full table.
+`sonnet`, `opus`, `gpt-oss`. Each alias resolves at call time to the newest
+matching model listed by `agy models`, so new Gemini or Claude versions are
+picked up without a plugin update. Any model name or id from `agy models`
+(e.g. `"Gemini 3.8 Flash (High)"`) is also accepted. Run `/agy:help` to see
+what each alias resolves to on your account. The model list depends on the
+account: if a family is missing (some accounts have no Gemini Pro model),
+its alias exits with an error and the list of models you can use.
 
-If no `--model` is given, the wrapper uses whatever the TUI is currently set
-to — stored in `~/.gemini/antigravity-cli/settings.json`. Project-local
+If no `--model` is given, `agy` uses whatever the TUI is currently set to,
+stored in `~/.gemini/antigravity-cli/settings.json`. Project-local
 `AGENTS.md` and `GEMINI.md` files are read directly by `agy` and unaffected
 by this plugin.
 
@@ -175,9 +179,9 @@ doesn't override or shadow any of that — drop config files where `agy`
 expects them and they'll be picked up.
 
 The `--model <alias>` flag on `/agy:ask`, `/agy:delegate`, and `/agy:research`
-swaps in your requested model for the duration of a single call (under a
-lockfile, with automatic restore on exit) and leaves the TUI's selected
-model intact for subsequent runs.
+is passed to `agy`'s own `--model` flag for that call only, so the TUI's
+selected model stays as it is. This needs `agy` 1.2.0 or newer; run
+`agy update` if the wrapper reports that your `agy` is too old.
 
 ## FAQ
 
@@ -203,6 +207,15 @@ terminal keeps working exactly as before.
 Subagents in Claude Code can run in the background and report back when
 finished. That is the workflow you want when you "hand this off to another
 model and keep working" — which is the whole point of delegating to `agy`.
+
+## Development
+
+```bash
+bash tests/agy-run.test.sh
+```
+
+The tests run the wrapper against a stub `agy` binary in a temporary `HOME`,
+so they never touch your real install or settings.
 
 ## Inspiration
 

@@ -44,8 +44,10 @@ Then invoke the `agy:runner` subagent with that prompt as
   `pro` or `opus` works well for research).
 
 Aliases: `flash-low`, `flash-medium`, `flash`, `pro-low`, `pro`, `sonnet`,
-`opus`, `gpt-oss`. Canonical TUI strings (e.g. `"Claude Opus 4.6 (Thinking)"`)
-are also accepted. Run `/agy:help` for the full table.
+`opus`, `gpt-oss`. Each alias resolves at call time to the newest matching
+model listed by `agy models`. Any model name or id from that list (e.g.
+`"Gemini 3.8 Flash (High)"`) is also accepted. Run `/agy:help` for the
+current table.
 
 ## Response style
 

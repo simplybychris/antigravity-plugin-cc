@@ -21,9 +21,9 @@ The wrapper:
 - Verifies auth (system keyring OAuth or `ANTIGRAVITY_API_KEY`).
 - Runs `agy -p "<prompt>"` non-interactively.
 - If `--model <alias>` is supplied **before** the prompt, resolves the
-  alias and applies it for the duration of the call (atomic patch of
-  `~/.gemini/antigravity-cli/settings.json` under a lockfile, restored on
-  exit).
+  alias against `agy models` and runs `agy --model <id> -p "<prompt>"`
+  (the display name instead of the id when the list has no ids).
+  The user's default model in agy's settings is not touched.
 - Forwards any extra arguments **after** the prompt straight to `agy` — so
   `… ask "<prompt>" --sandbox` becomes `agy -p "<prompt>" --sandbox`.
 
@@ -40,8 +40,9 @@ Pass agy-native flags through after the prompt argument.
 
 `flash-low`, `flash-medium` (`flash-med`), `flash` (`flash-high`),
 `pro-low`, `pro` (`pro-high`), `sonnet` (`claude-sonnet`),
-`opus` (`claude-opus`), `gpt-oss` (`gpt-oss-120b`). Canonical TUI strings
-are also accepted verbatim (e.g. `"Claude Opus 4.6 (Thinking)"`).
+`opus` (`claude-opus`), `gpt-oss` (`gpt-oss-120b`). Each alias picks the
+newest matching model from `agy models` at call time. Model names and ids
+from that list are also accepted verbatim (e.g. `"Gemini 3.8 Flash (High)"`).
 
 Run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/agy-run.sh" help` for the
 authoritative list.
@@ -52,7 +53,8 @@ Run `agy --help` for the full list. Useful ones that go **after** the
 prompt argument:
 
 - `--sandbox` — extra-restrictive execution; only when the user asked for it.
-- `--print-timeout 10m` — extend the default 5min print timeout.
+- `--print-timeout 10m` — stop print mode after a time limit (by default
+  it waits until the turn completes).
 - `--add-dir <path>` — add a directory to the workspace (repeatable).
 
 ## What this skill does NOT do
@@ -67,6 +69,10 @@ If the wrapper exits non-zero, return its stderr verbatim. Standard exit
 codes:
 
 - `127` — `agy` binary not found.
-- `1` — not authenticated, no diff found (`review` subcommand), or
-  settings.json missing/malformed (`--model` path).
-- `64` — bad CLI usage of the wrapper itself, or unknown `--model` alias.
+- `1` — not authenticated, no diff found (`review` subcommand), `agy`
+  older than 1.2.0 when `--model` is used, or `agy models` unavailable when
+  an alias was requested.
+- `64` — bad CLI usage of the wrapper itself, a `--model` value that is
+  neither an alias nor listed by `agy models`, or an alias whose model
+  family `agy models` does not offer (e.g. `pro` on an account without a
+  Gemini Pro model).

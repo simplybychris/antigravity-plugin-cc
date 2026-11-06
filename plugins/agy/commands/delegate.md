@@ -18,13 +18,13 @@ $ARGUMENTS
 - If the request contains `--model <alias>`, forward it to the subagent so
   it can be appended to the wrapper call as `--model <alias>` (placed
   **before** the prompt argument). Strip it from the task text.
-- If no model is given, the wrapper uses whatever the TUI is currently set
-  to (stored in `~/.gemini/antigravity-cli/settings.json`).
+- If no model is given, `agy` uses the default model selected in its TUI.
 
 Aliases for `<alias>`: `flash-low`, `flash-medium`, `flash`, `pro-low`,
-`pro`, `sonnet`, `opus`, `gpt-oss`. Canonical TUI strings (e.g.
-`"Claude Opus 4.6 (Thinking)"`) are also accepted. Run `/agy:help` for the
-full table.
+`pro`, `sonnet`, `opus`, `gpt-oss`. Each alias resolves at call time to the
+newest matching model listed by `agy models`. Any model name or id from that
+list (e.g. `"Gemini 3.8 Flash (High)"`) is also accepted. Run `/agy:help` for
+the current table.
 
 ## Response style
 
