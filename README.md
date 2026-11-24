@@ -121,7 +121,8 @@ Supported aliases: `flash-low`, `flash-medium`, `flash`, `pro-low`, `pro`,
 matching model listed by `agy models`, so new Gemini or Claude versions are
 picked up without a plugin update. Any model name or id from `agy models`
 (e.g. `"Gemini 3.8 Flash (High)"`) is also accepted. Run `/agy:help` to see
-what each alias resolves to on your account. The model list depends on the
+what each alias resolves to on your account. `pro` and `pro-low` match the
+newest Gemini Pro or, from Gemini 4 on, Gemini Neon. The model list depends on the
 account: if a family is missing (some accounts have no Gemini Pro model),
 its alias exits with an error and the list of models you can use.
 

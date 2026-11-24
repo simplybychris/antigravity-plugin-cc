@@ -76,18 +76,19 @@ require_ready() {
   echo "$path"
 }
 
-# Each row: comma-separated aliases | ERE matched against the lowercased
-# display name from `agy models` | ERE that wins a version tie (may be
-# empty) | description shown when no listing is available. Aliases pick the
-# newest version in their family.
-MODEL_ALIASES='flash-low|^gemini [0-9.]+ flash [(]low[)]$||newest Gemini Flash (Low)
-flash-medium,flash-med|^gemini [0-9.]+ flash [(]medium[)]$||newest Gemini Flash (Medium)
-flash,flash-high|^gemini [0-9.]+ flash [(]high[)]$||newest Gemini Flash (High)
-pro-low|^gemini [0-9.]+ pro [(]low[)]$||newest Gemini Pro (Low)
-pro,pro-high|^gemini [0-9.]+ pro [(]high[)]$||newest Gemini Pro (High)
-sonnet,claude-sonnet|^claude sonnet [0-9.]+( [(].*[)])?$|[(]thinking[)]$|newest Claude Sonnet
-opus,claude-opus|^claude opus [0-9.]+( [(].*[)])?$|[(]thinking[)]$|newest Claude Opus
-gpt-oss,gpt-oss-120b|^gpt-oss 120b( [(].*[)])?$|[(]medium[)]$|GPT-OSS 120B'
+# Each row, fields separated by ";": comma-separated aliases ; ERE matched
+# against the lowercased display name from `agy models` ; ERE that wins a
+# version tie (may be empty) ; description shown when no listing is available. Aliases pick the
+# newest version in their family. Gemini 4 dropped the "Pro" name, so the pro
+# aliases also match Neon, the top Gemini 4 tier.
+MODEL_ALIASES='flash-low;^gemini [0-9.]+ flash [(]low[)]$;;newest Gemini Flash (Low)
+flash-medium,flash-med;^gemini [0-9.]+ flash [(]medium[)]$;;newest Gemini Flash (Medium)
+flash,flash-high;^gemini [0-9.]+ flash [(]high[)]$;;newest Gemini Flash (High)
+pro-low;^gemini [0-9.]+ (pro|neon) [(]low[)]$;;newest Gemini Pro or Neon (Low)
+pro,pro-high;^gemini [0-9.]+ (pro|neon) [(]high[)]$;;newest Gemini Pro or Neon (High)
+sonnet,claude-sonnet;^claude sonnet [0-9.]+( [(].*[)])?$;[(]thinking[)]$;newest Claude Sonnet
+opus,claude-opus;^claude opus [0-9.]+( [(].*[)])?$;[(]thinking[)]$;newest Claude Opus
+gpt-oss,gpt-oss-120b;^gpt-oss 120b( [(].*[)])?$;[(]medium[)]$;GPT-OSS 120B'
 
 # Older agy builds lack --model, ignore it in -p runs, or hang in
 # `agy models` on an open stdin.
@@ -177,13 +178,13 @@ _model_arg() {
   fi
 }
 
-# Prints "pattern|prefer|description" for alias $1 (already lowercased).
+# Prints "pattern;prefer;description" for alias $1 (already lowercased).
 _alias_row() {
   local want="$1" aliases pattern prefer description
   case "$want" in ""|*,*) return 1 ;; esac
-  while IFS='|' read -r aliases pattern prefer description; do
+  while IFS=';' read -r aliases pattern prefer description; do
     case ",$aliases," in
-      *",$want,"*) printf '%s|%s|%s' "$pattern" "$prefer" "$description"; return 0 ;;
+      *",$want,"*) printf '%s;%s;%s' "$pattern" "$prefer" "$description"; return 0 ;;
     esac
   done <<<"$MODEL_ALIASES"
   return 1
@@ -199,7 +200,7 @@ print_model_table() {
       echo "Aliases (case-insensitive). \`agy models\` could not be read, so they are shown unresolved:"
     fi
     local aliases pattern prefer description match target
-    while IFS='|' read -r aliases pattern prefer description; do
+    while IFS=';' read -r aliases pattern prefer description; do
       target="$description"
       if [ -n "$models" ]; then
         match="$(_newest_match "$models" "$pattern" "$prefer")"
@@ -261,7 +262,7 @@ resolve_model() {
   local match pattern prefer description
   match="$(_exact_match "$models" "$input")"
   if [ -z "$match" ] && [ -n "$row" ]; then
-    IFS='|' read -r pattern prefer description <<<"$row"
+    IFS=';' read -r pattern prefer description <<<"$row"
     match="$(_newest_match "$models" "$pattern" "$prefer")"
     [ -n "$match" ] || echo "error: alias '$input' has no matching model in \`agy models\` (expected: $description)" >&2
   elif [ -z "$match" ]; then
