@@ -77,6 +77,16 @@ Claude Opus 4.6 (Thinking)
 Claude Opus 5 (Thinking)
 EOF
 
+MODELS_GEMINI4="$WORK/models-gemini4.txt"
+printf '%s\t%s\n' \
+  gemini-4-neon-xhigh "Gemini 4 Neon (XHigh)" \
+  gemini-4-neon-high "Gemini 4 Neon (High)" \
+  gemini-4-neon-low "Gemini 4 Neon (Low)" \
+  gemini-4-carbon-high "Gemini 4 Carbon (High)" \
+  gemini-4-carbon-low "Gemini 4 Carbon (Low)" \
+  gemini-3.1-pro-high "Gemini 3.1 Pro (High)" \
+  gemini-pro-orchestrator "Orchestrator (Carbon)" > "$MODELS_GEMINI4"
+
 PASS=0
 FAIL=0
 OUT=""
@@ -181,6 +191,15 @@ test_versions_compare_numerically() {
   called_with_model "Gemini 3.2 Pro (High)" || return 1
   MODELS_FILE="$MODELS_NEWER" run_wrapper ask --model opus hello
   called_with_model "Claude Opus 5 (Thinking)"
+}
+
+test_pro_resolves_to_gemini_4_neon() {
+  MODELS_FILE="$MODELS_GEMINI4" run_wrapper ask --model pro hello
+  called_with_model "gemini-4-neon-high" || return 1
+  MODELS_FILE="$MODELS_GEMINI4" run_wrapper ask --model pro-high hello
+  called_with_model "gemini-4-neon-high" || return 1
+  MODELS_FILE="$MODELS_GEMINI4" run_wrapper ask --model pro-low hello
+  called_with_model "gemini-4-neon-low"
 }
 
 test_display_name_passes_through() {
